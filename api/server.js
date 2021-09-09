@@ -27,5 +27,14 @@ server.post('/api/officers', (req,res) => {
             res.status(500).json(err)
         })
 })
+server.delete('/api/officers/:id', (req,res) => {
+    Officers.remove(req.params.id)
+        .then(removed => {
+            res.status(204).json(removed.body)
+        })
+        .catch(err => {
+            res.status(500).json(err)
+        })
+})
 
 module.exports = server;

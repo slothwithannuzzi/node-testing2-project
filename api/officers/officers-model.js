@@ -18,7 +18,7 @@ async function remove(id){
     await db("officers")
          .where("id", id)
          .del()
-    return `The officer with ${id} was deleted.`
+    return findAll()
 }
 
 module.exports = {

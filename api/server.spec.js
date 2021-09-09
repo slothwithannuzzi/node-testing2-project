@@ -1,92 +1,85 @@
 const request = require('supertest'); 
 const db = require('../data/dbConfig');
-
 const Officers = require('./officers/officers-model')
+const server = require('./server.js');
 
-const server = require('./server.js'); 
+beforeEach(async () => {
+    await db('officers').truncate()
+})
+
+afterAll(async () => {
+    await db.destroy()
+})
 
 describe('server.js', () => {
 
-  describe('index route', () => {
     it('should return an OK status code from the index route', async () => {
       const expectedStatusCode = 200;
 
-      const response = await request(server).get('/');
+      const res = await request(server).get('/');
 
-      expect(response.status).toEqual(expectedStatusCode);
+      expect(res.status).toEqual(expectedStatusCode);
     });
 
     it('should return a JSON object from the index route', async () => {
       const expectedBody = { api: 'running' };
 
-      const response = await request(server).get('/');
+      const res = await request(server).get('/');
 
-      expect(response.body).toEqual(expectedBody);
+      expect(res.body).toEqual(expectedBody);
     });
 
     it('should return a JSON object from the index route', async () => {
-      const response = await request(server).get('/');
+      const res = await request(server).get('/');
 
-      expect(response.type).toEqual('application/json');
+      expect(res.type).toEqual('application/json');
     });
-    it('should return an array of officers from the api/officers route', async () => {
-        const response = await request(server).get('/api/officers')
-        const officers = await db("officers")
-        expect(response.body).toEqual(officers)
-    })
-    it('should return inserted officer from a post request to api/officers route', async () => {
-        const response = await request(server).post('/api/officers').send({ name: 'Data' })
-        expect(response.status).toBe(201)
-        expect(response.body).toMatchObject({name: "Data"})
-    })
-  });
-  describe('officers model', () => {
-      describe('insert()', () =>{
-          beforeEach(async () => {
-              await db('officers').truncate();
-          })
-          it('should insert the provided officers into the db', async ()=> {
-              await Officers.insert({ name: "Picard" })
-              await Officers.insert({ name: "Worf" })
 
-              const officers = await db('officers');
-
-              expect(officers).toHaveLength(2);
-          })
-          it("should insert the provided officer into the db", async() =>{
-              let officer = await Officers.insert({ name: "Riker" })
-              expect(officer.name).toBe("Riker")
-
-              officer = await Officers.insert({ name: "Troi" })
-              expect(officer.name).toBe('Troi')
-          })
-      })
-      describe('remove()', () =>{
-        beforeEach(async () => {
-            await db('officers').truncate();
+  })
+  describe('endpoints', () => {
+    describe('endpoints', () => {
+        describe("[GET] /api/officers", () => {
+            it("responds with a status 200", async () => {
+                const res = await request(server).get('/api/officers')
+                expect(res.status).toBe(200)
+            })
+            it('returns an array', async () => {
+                const res = await request(server).get('/api/officers')
+                const officers = await db("officers")
+                expect(res.body).toEqual(officers)
+            })
+            it('returns right amount of officers', async () =>{
+                await db('officers').insert({ name: "Picard" })
+                const res = await request(server).get('/api/officers')
+                expect(res.body).toHaveLength(1);
+            })
         })
-
-        it('should remove the officer with provided id', async() => {
-            await Officers.insert({ name: "Picard" })
-            await Officers.insert({ name: "Worf" })
-            
-            const officers = await db('officers')
-            expect(officers).toHaveLength(2);
-            const id = 1
-            await Officers.remove(id)
-            const officer = await db('officers')
-            expect(officer).toHaveLength(1);            
-          })
-          it('should return a message about officer removed', async() => {
-            await Officers.insert({ name: "Picard" })
-            await Officers.insert({ name: "Worf" })
-            
-            const id = 1
-            const returned = `The officer with ${id} was deleted.`
-
-            expect(await Officers.remove(id)).toEqual(returned)
-
-          })
-      })
+        describe("[POST] /api/officers", () => {
+            it('should return status 201', async () => {
+                const res = await request(server).post('/api/officers').send({ name: 'Data' })
+                expect(res.status).toBe(201)
+            })
+            it('should return inserted officer', async () => {
+                const res = await request(server).post('/api/officers').send({ name: 'Data' })
+                expect(res.body).toMatchObject({name: "Data"})
+            })
+        })
+        describe("[DELETE] /api/officers/:id", () => {
+            it('should respond with status 200', async () => {
+                const {id} = await db("officers").insert({ name: "Picard" })
+                const res = await request(server).delete(`/api/officers/${id}`)
+                expect(res.status).toBe(204)
+            })
+            it("should remove officer from database", async () => {
+                await db('officers').insert({name: "Picard"})
+                expect(await db('officers')).toHaveLength(1)
+                await request(server).delete(`/api/officers/${1}`)
+                        .then(async() => {
+                            const find = await Officers.findAll()
+                            expect(find).toHaveLength(0)
+                        })
+                                      
+            })
+        })
   })
 });
